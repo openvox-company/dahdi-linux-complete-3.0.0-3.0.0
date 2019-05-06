@@ -1,0 +1,40 @@
+obj-$(DAHDI_BUILD_ALL)$(CONFIG_DAHDI_OPVXA24XX) += opvxa24xx.o
+
+FIRM_DIR	:= ../firmware
+
+EXTRA_CFLAGS += -I$(src)/.. -I$(src)/../oct612x/ $(shell $(src)/../oct612x/octasic-helper cflags $(src)/../oct612x) -Wno-undef
+
+DAHDI_KERNEL_H_NAME:=kernel.h
+DAHDI_KERNEL_H_PATH:=$(DAHDI_INCLUDE)/dahdi/$(DAHDI_KERNEL_H_NAME)
+ifneq ($(DAHDI_KERNEL_H_PATH),)
+        DAHDI_SPAN_MODULE:=$(shell if grep -C 5 "struct dahdi_span {" $(DAHDI_KERNEL_H_PATH) | grep -q "struct module \*owner"; then echo "yes"; else echo "no"; fi)
+        DAHDI_SPAN_OPS:=$(shell if grep -q "struct dahdi_span_ops {" $(DAHDI_KERNEL_H_PATH); then echo "yes"; else echo "no"; fi)
+        ifeq ($(DAHDI_SPAN_MODULE),yes)
+                EXTRA_CFLAGS+=-DDAHDI_SPAN_MODULE
+        else
+                ifeq ($(DAHDI_SPAN_OPS),yes)
+                        EXTRA_CFLAGS+=-DDAHDI_SPAN_OPS
+                endif
+        endif
+endif
+
+ifeq ($(HOTPLUG_FIRMWARE),yes)
+  EXTRA_CFLAGS+=-DHOTPLUG_FIRMWARE
+endif
+
+opvxa24xx-objs := private.o a24xx.o si321x.o si3050.o ec3000.o callerid.o busydetect.o base.o $(shell $(src)/../oct612x/octasic-helper objects ../oct612x)
+
+ifneq ($(HOTPLUG_FIRMWARE),yes)
+opvxa24xx-objs += $(FIRM_DIR)/dahdi-fw-oct6114-032.o $(FIRM_DIR)/dahdi-fw-oct6114-064.o $(FIRM_DIR)/dahdi-fw-oct6114-128.o
+endif
+
+
+$(obj)/$(FIRM_DIR)/dahdi-fw-oct6114-032.o: $(obj)/base.o
+	$(MAKE) -C $(obj)/$(FIRM_DIR) dahdi-fw-oct6114-032.o	
+
+$(obj)/$(FIRM_DIR)/dahdi-fw-oct6114-064.o: $(obj)/base.o
+	$(MAKE) -C $(obj)/$(FIRM_DIR) dahdi-fw-oct6114-064.o
+
+$(obj)/$(FIRM_DIR)/dahdi-fw-oct6114-128.o: $(obj)/base.o
+	$(MAKE) -C $(obj)/$(FIRM_DIR) dahdi-fw-oct6114-128.o
+

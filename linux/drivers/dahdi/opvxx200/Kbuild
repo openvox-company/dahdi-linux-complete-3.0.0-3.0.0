@@ -1,0 +1,41 @@
+obj-m += x200.o d100m.o b200m.o fxo200m.o fxs200m.o
+
+FIRM_DIR	:= ../firmware
+
+EXTRA_CFLAGS += -I$(src)/.. $(shell $(src)/../oct612x/octasic-helper cflags $(src)/../oct612x) -Wno-undef
+
+
+ifeq ($(HOTPLUG_FIRMWARE),yes)
+  EXTRA_CFLAGS+=-DHOTPLUG_FIRMWARE
+endif
+
+
+x200-objs :=  ec3000.o x200_hal.o x200_bus.o $(shell $(src)/../oct612x/octasic-helper objects ../oct612x)
+
+ifneq ($(HOTPLUG_FIRMWARE),yes)
+x200-objs += $(FIRM_DIR)/dahdi-fw-oct6114-032.o $(FIRM_DIR)/dahdi-fw-oct6114-064.o $(FIRM_DIR)/dahdi-fw-oct6114-128.o
+endif
+
+d100m-objs := ec3000.o x2d100m.o $(shell $(src)/../oct612x/octasic-helper objects ../oct612x)
+b200m-objs := ec3000.o x2b200m.o $(shell $(src)/../oct612x/octasic-helper objects ../oct612x)
+fxo200m-objs := ec3000.o busydetect.o x2fxo200m.o $(shell $(src)/../oct612x/octasic-helper objects ../oct612x)
+fxs200m-objs :=  ec3000.o x2fxs200m.o $(shell $(src)/../oct612x/octasic-helper objects ../oct612x)
+
+$(obj)/x200_bus.o: $(src)/x200_bus.c $(src)/x200_hal.h 
+$(obj)/x200_hal.o: $(src)/x200_hal.c $(src)/x200_hal.h 
+$(obj)/ec3000.o: $(src)/ec3000.c  $(src)/ec3000.h
+$(obj)/x2d100m.o: $(src)/x2d100m.c $(src)/x200_hal.h $(src)/x2d100m.h
+$(obj)/x2b200m.o: $(src)/x2b200m.c $(src)/x200_hal.h $(src)/x2b200m.h
+$(obj)/x2fxo200m.o: $(src)/x2fxo200m.c $(src)/x200_hal.h $(src)/x2fxo200m.h
+$(obj)/busydetect.o: $(src)/busydetect.c
+$(obj)/x2fxs200m.o: $(src)/x2fxs200m.c $(src)/x200_hal.h $(src)/x2fxs200m.h
+
+$(obj)/$(FIRM_DIR)/dahdi-fw-oct6114-032.o: $(obj)/base.o
+	$(MAKE) -C $(obj)/$(FIRM_DIR) dahdi-fw-oct6114-032.o	
+
+$(obj)/$(FIRM_DIR)/dahdi-fw-oct6114-064.o: $(obj)/base.o
+	$(MAKE) -C $(obj)/$(FIRM_DIR) dahdi-fw-oct6114-064.o
+
+$(obj)/$(FIRM_DIR)/dahdi-fw-oct6114-128.o: $(obj)/base.o
+	$(MAKE) -C $(obj)/$(FIRM_DIR) dahdi-fw-oct6114-128.o
+

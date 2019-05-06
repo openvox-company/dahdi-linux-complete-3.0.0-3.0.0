@@ -1,0 +1,150 @@
+#!/bin/bash
+
+#Re-assignments dahdi span numbers.
+
+#NOTE:
+#Openvox A1008 cards install in a box which numbers A1008 cards with slot index
+#while dahdi driver numbering all device spans nubmer automictally, and the span
+#nubmer is random, in this case we need to re-assignments dahdi span so that the
+#A1008 span/channel nubmer correspond to the box slot index.
+#
+#Byte now, ONLY A1008 needs to re-assignment.
+# Location files
+OPVX_LCTN_INFO_FILE=/proc/ua32xx/location
+A1008_CHANS_PER_SPAN=8
+
+#temp file
+OPVX_LCTN_INFO=/tmp/.opvx_lctn_info
+RE_ASS_LCTN_INFO=/tmp/.opvx_re_ass_lctn_info
+COMM_RE_ASS_LCTN_INFO=/tmp/.comm_re_ass_lctn_info
+COMM_NOT_RE_ASS_LCTN_INFO=/tmp/.comm_not_re_ass_lctn_info
+LCTN_ONLY_IN_ORDER=/tmp/.location_only_in_order
+SLOT_IDX_ONLY_IN_ORDER=/tmp/.slot_idx_only_in_order
+PATH_ONLY_IN_ORDER=/tmp/.path_only_in_order
+TEMP_FILE=/tmp/.temp_file
+
+# It uses a configuration file: $DAHDICONFDIR/assigned-spans.conf
+# (default DAHDICONFDIR=/etc/dahdi)
+DAHDI_ASSIGN_SPAN_CFG=/etc/dahdi/assigned-spans.conf
+
+
+
+if [ ! -f $OPVX_LCTN_INFO_FILE ];
+then
+    #has not locaction information file
+    exit 0;
+fi
+
+#Only re-assignment A1008  now
+cat $OPVX_LCTN_INFO_FILE |grep "A1008" > $OPVX_LCTN_INFO 
+RE_ASS_NUM=`wc -l $OPVX_LCTN_INFO | cut -d' ' -f 1`
+
+if [ $RE_ASS_NUM -le 1 ];
+then
+    #Has no Device A1008 (=0)
+    #or ONLY one A1008, need not to re-assignments
+    exit 0;
+fi
+
+#Sort location information by slot index order
+sort -t'!' -k2n $OPVX_LCTN_INFO > $RE_ASS_LCTN_INFO
+
+#   Get slot index info
+cut -d! -f 2 $RE_ASS_LCTN_INFO>$SLOT_IDX_ONLY_IN_ORDER
+REPEAT_NO=`uniq -d $SLOT_IDX_ONLY_IN_ORDER`
+if [  -n "$REPEAT_NO" ];
+then
+    echo "$0 repeated slot index: $REPEAT_NO"
+    echo "Assignments all spans automatically"
+    dahdi_span_assignments remove 2>&1 >/dev/null 
+    dahdi_span_assignments auto  2>&1 >/dev/null 
+    exit 0
+fi
+
+#   Clear file
+echo -n "" >$LCTN_ONLY_IN_ORDER
+#   Get location info
+cut -d! -f 3 $RE_ASS_LCTN_INFO>$TEMP_FILE
+while read line;
+do
+#   Remove the beginning/ending space
+    echo $line |sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//'|  \
+#   Remove '\n'
+    tr -d '\n' |  \
+#   Replace character with '_', except 'a-zA-Z0-9/:.-'
+#   MUST the same as tool/dahdi_span_assignments attr_clean() function
+    tr -c 'a-zA-Z0-9/j.-' '_' \
+    >> $LCTN_ONLY_IN_ORDER
+    echo -en "\n" >> $LCTN_ONLY_IN_ORDER
+done < $TEMP_FILE
+
+#trim in a list, replace '\n' with '|' and remove the last '|'
+LCTN_LIST=`tr '\n' '|' < $LCTN_ONLY_IN_ORDER |sed 's/|$//'`
+
+#Tell driver is going to re-assign dahdi span no an chan no
+#So that driver remove LED config and DCRA /proc interface
+echo -n "prepare_re-assign" >$OPVX_LCTN_INFO_FILE
+dahdi_span_assignments auto  2>&1 >/dev/null
+#Get the info needed to re-assignment
+dahdi_span_assignments list |grep  -E "$LCTN_LIST" >$COMM_RE_ASS_LCTN_INFO  
+#Get the info not needed to re-assignment
+dahdi_span_assignments list |grep -v -E "$LCTN_LIST" >$COMM_NOT_RE_ASS_LCTN_INFO 
+
+#Remove all assignmented spans
+dahdi_span_assignments remove 2>&1 >/dev/null 
+
+#First assign not need to re-assignmented spans
+while read line;
+do
+    echo $line | awk '{print $4}' |xargs -I {} dahdi_span_assignments auto {} 2>&1 >/dev/null 
+done < $COMM_NOT_RE_ASS_LCTN_INFO
+
+#Second automically assign needed to re-assignmented spans
+#   Clear file
+echo -n "" >$PATH_ONLY_IN_ORDER
+while read line;
+do
+    grep "$line" $COMM_RE_ASS_LCTN_INFO | awk '{print $4}' | \
+    xargs -I {} dahdi_span_assignments auto {} 2>&1 >/dev/null
+    grep "$line" $COMM_RE_ASS_LCTN_INFO | awk '{print $4}' >>$PATH_ONLY_IN_ORDER
+done < $LCTN_ONLY_IN_ORDER
+
+dahdi_span_assignments dumpconfig >$DAHDI_ASSIGN_SPAN_CFG
+
+
+FIRST_RE_ASS_SPAN=`head $LCTN_ONLY_IN_ORDER -n 1`
+START_SPAN_NO=`dahdi_span_assignments list| \
+               grep $FIRST_RE_ASS_SPAN    | \
+               cut -d':' -f 2`
+
+START_CHAN_NO=`dahdi_span_assignments list| \
+               grep $FIRST_RE_ASS_SPAN    | \
+               cut -d':' -f 3             | \
+               cut -d' ' -f 1`
+
+#echo "start: span_no=$START_SPAN_NO chan_no=$START_CHAN_NO"
+LINE_NO=0
+while read line;
+do
+   LINE_NO=`expr $LINE_NO + 1`
+   SPAN_NO=`sed -n  "$LINE_NO"p $SLOT_IDX_ONLY_IN_ORDER`
+   GLOBAL_SPAN_NO=`expr $SPAN_NO + $START_SPAN_NO`
+
+   CHAN_NO=`expr $SPAN_NO \* $A1008_CHANS_PER_SPAN`
+   GLOBAL_CHAN_NO=`expr $CHAN_NO + $START_CHAN_NO`
+   
+   #Span Specification
+   SPECIFICATION=`grep "^$line"  $DAHDI_ASSIGN_SPAN_CFG |awk '{print $2}'`
+   REL_SPAN_NO=`echo $SPECIFICATION |cut -d':' -f 1`
+   #echo "GLOBAL_SPAN_NO=$GLOBAL_SPAN_NO GLOBAL_CHAN_NO=$GLOBAL_CHAN_NO"
+   sed -i "s!^$line.*!$line $REL_SPAN_NO:$GLOBAL_SPAN_NO:$GLOBAL_CHAN_NO!g" $DAHDI_ASSIGN_SPAN_CFG
+done < $PATH_ONLY_IN_ORDER
+
+dahdi_span_assignments remove 2>&1 >/dev/null 
+dahdi_span_assignments add  2>&1 >/dev/null 
+dahdi_span_assignments dumpconfig >$DAHDI_ASSIGN_SPAN_CFG
+
+#Tell driver re-assign is finished
+#So that driver register LED config and DCRA /proc interface again
+echo -n "finish_re-assign" >$OPVX_LCTN_INFO_FILE
+
