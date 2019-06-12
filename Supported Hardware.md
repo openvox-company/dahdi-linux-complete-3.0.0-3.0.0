@@ -39,7 +39,7 @@ Digital Cards
 
 
 Analog Cards
-~~~~~~~~~~~~
+
 - wctdm:
   * OpenVox A400E/P: PCI-Express or PCI 4 analog ports
 - opvxa1200:
@@ -61,7 +61,7 @@ Analog Cards
   (including the digital BRI and E1/T1 modules)
   
 Hybird Cards
-~~~~~~~~~~~~
+
 - opvxx200
   * OpenVox X204E/P: PCI-Express or PCI with 4 modules
                      FXO200M -- 2 FXO ports
