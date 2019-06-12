@@ -1,8 +1,8 @@
-# dahdi-linux-complete-3.0.0-3.0.0
+dahdi-linux-complete-3.0.0-3.0.0
+==
 
 Supported Hardware
-Digital Cards
-
+#### Digital Cards
 - wcte43x:
   * Digium TE435: PCI express quad-port T1/E1/J1
   * Digium TE436: PCI quad-port T1/E1/J1
@@ -37,9 +37,7 @@ Digital Cards
 - zaphfc:
    * OpenVox B100E/P: PCI-Express or PCI single-port BRI
 
-
-Analog Cards
-
+#### Analog Cards
 - wctdm:
   * OpenVox A400E/P: PCI-Express or PCI 4 analog ports
 - opvxa1200:
@@ -60,11 +58,11 @@ Analog Cards
 - xpp: Xorcom Astribank: a USB connected unit of up to 32 ports
   (including the digital BRI and E1/T1 modules)
   
-Hybird Cards
-
+#### Hybird Cards
 - opvxx200
-  * OpenVox X204E/P: PCI-Express or PCI with 4 modules
-                     FXO200M -- 2 FXO ports
-                     FXS200M -- 2 FXS ports
-                     D100M -- single E1/T1/J1 port
-                     B200M -- 2 Ports BRI (TE/NT)
+  * OpenVox X204E/P:   
+                     PCI-Express or PCI with 4 modules  
+                     FXO200M -- 2 FXO ports  
+                     FXS200M -- 2 FXS ports  
+                     D100M -- single E1/T1/J1 port  
+                     B200M -- 2 Ports BRI (TE/NT)  
