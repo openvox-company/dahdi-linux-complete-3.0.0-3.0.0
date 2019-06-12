@@ -37,7 +37,7 @@ Compared to the original DAHDI drivers, we have added or modified the following 
   * OpenVox A2410E/P: PCI-Express or PCI 24 analog ports
 
 #### Hybrid Cards
-###### opvxx200
+###### -opvxx200
   * OpenVox X204E/P: PCI-Express or PCI Hybrid Cards (FXS/FXO/BRI/E1/T1)
 ***
 The DAHDI-3.0.0 driver has tested on the following kernel version:
